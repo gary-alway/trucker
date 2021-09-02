@@ -1,0 +1,53 @@
+service: trucker
+
+plugins:
+  - serverless-offline
+  - serverless-plugin-typescript
+  - serverless-localstack
+
+custom:
+  serverless-offline:
+    httpPort: 21001
+    lambdaPort: 3001
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  memorySize: 256
+  timeout: 30
+
+functions:
+  create_truck:
+    handler: src/lambdas/creator.endpoint
+    events:
+      - http:
+          path: /trucks/create
+          method: POST
+
+  load_truck:
+    handler: src/lambdas/loader.endpoint
+    events:
+      - http:
+          path: /trucks/{id}/load
+          method: POST
+
+  unload_truck:
+    handler: src/lambdas/unloader.endpoint
+    events:
+      - http:
+          path: /trucks/{id}/unload
+          method: POST
+
+  truck_status:
+    handler: src/lambdas/truck.endpoint
+    events:
+      - http:
+          path: /trucks/{id}
+          method: GET
+
+  trucks:
+    handler: src/lambdas/trucks.endpoint
+    events:
+      - http:
+          path: /trucks/
+          method: GET

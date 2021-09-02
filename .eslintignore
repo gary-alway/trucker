@@ -1,0 +1,6 @@
+build/
+.build/
+coverage
+node_modules
+.eslintrc.js
+jest.config.js
