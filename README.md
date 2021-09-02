@@ -1,6 +1,6 @@
 # Trucker
 
-A parcel service using [localstack]() and [serverless]()
+A parcel service using [localstack](https://localstack.cloud/) and [serverless](https://www.serverless.com/)
 
 ## Prerequisites
 
