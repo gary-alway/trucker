@@ -92,7 +92,8 @@ describe.each([[true], [false]])('default client: %s', defaultClient => {
     )
   })
 
-  it('load a truck', async () => {
+  it('loads a truck ignoring duplicates', async () => {
+    getItem.mockResolvedValueOnce(truckRecord)
     await loadTruck(id, parcels, client)
 
     expect(mockClient.putItem).toHaveBeenCalledTimes(1)

@@ -60,14 +60,23 @@ describe('API acceptance tests', () => {
       .post(`${API}/trucks/${id}/load`)
       .send({ parcels })
 
+    const parcel3 = testParcel()
+    const parcel4 = testParcel()
+    const moreParcels = [parcel3, parcel4]
+    await request
+      .post(`${API}/trucks/${id}/load`)
+      .send({ parcels: moreParcels })
+
     expect(res2.status).toBe(200)
 
     const { status, body } = await request.get(`${API}/trucks/${id}`)
 
+    const allParcels = [...parcels, ...moreParcels]
+
     expect(status).toBe(200)
-    expect(body.data.parcels).toEqual(parcels)
+    expect(body.data.parcels).toEqual(allParcels)
     expect(body.data.totalWeight).toBe(
-      parcels.reduce((acc, curr) => acc + curr.weight, 0)
+      allParcels.reduce((acc, curr) => acc + curr.weight, 0)
     )
   })
 
