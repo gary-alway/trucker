@@ -1,11 +1,16 @@
 import request, { SuperAgentRequest } from 'superagent'
 import { API } from '../../src/constants'
+import { purgeAll } from '../awsTestClients'
 import { testParcel } from '../testFactories'
 
 const createTruck = (): SuperAgentRequest =>
   request.post(`${API}/trucks/create`)
 
 describe('API acceptance tests', () => {
+  beforeAll(async () => {
+    await purgeAll()
+  })
+
   it('POST /trucks/create - creates a new truck', async () => {
     const { status, body } = await createTruck()
     expect(status).toBe(200)
