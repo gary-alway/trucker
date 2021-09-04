@@ -2,19 +2,20 @@ import { getDynamoClient } from '../clients/getClients'
 import { v4 as uuid } from 'uuid'
 import { API, DDB_TABLE } from '../constants'
 import { pathOr } from 'ramda'
-import { Parcel, Truck } from '../types'
+import { AuditEntry, Parcel, Truck } from '../types'
 
-const calcTruckWeight = (parcels: Parcel[]): number =>
+export const calcTruckWeight = (parcels: Parcel[]): number =>
   parcels.reduce((acc: number, curr: Parcel) => acc + curr.weight, 0)
 
 const transformTruckRecord = (
-  { id, parcels = [] }: Truck,
+  { id, parcels = [], audit = [] }: Truck,
   showStatus = true
 ): Truck => ({
   id,
   parcels,
   totalWeight: calcTruckWeight(parcels),
-  status: showStatus ? `${API}/trucks/${id}` : undefined
+  status: showStatus ? `${API}/trucks/${id}` : undefined,
+  audit
 })
 
 export const createTruck = async (
@@ -51,7 +52,7 @@ export const loadTruck = async (
   incomingParcels: Parcel[],
   client = getDynamoClient()
 ): Promise<void> => {
-  const { parcels } = await trucksStatus(id, client)
+  const { parcels, audit } = await trucksStatus(id, client)
   const parcelIds = parcels.map(({ id }) => id)
 
   const updatedParcels = [
@@ -59,7 +60,17 @@ export const loadTruck = async (
     ...incomingParcels.filter(({ id }) => !parcelIds.includes(id))
   ]
 
-  await client.putItem({ id, parcels: updatedParcels }, DDB_TABLE)
+  const auditEntry: AuditEntry = {
+    timestamp: new Date().toISOString(),
+    weight: calcTruckWeight(updatedParcels)
+  }
+
+  const updatedAudit = [...audit, auditEntry]
+
+  await client.putItem(
+    { id, parcels: updatedParcels, audit: updatedAudit },
+    DDB_TABLE
+  )
 }
 
 export const unloadTruck = async (
@@ -67,12 +78,22 @@ export const unloadTruck = async (
   parcelsToOffload: string[],
   client = getDynamoClient()
 ): Promise<Parcel[]> => {
-  const { parcels } = await trucksStatus(id, client)
+  const { parcels, audit } = await trucksStatus(id, client)
 
   const offload = parcels.filter(p => parcelsToOffload.includes(p.id))
   const remaining = parcels.filter(p => !parcelsToOffload.includes(p.id))
 
-  await client.putItem({ id, parcels: remaining }, DDB_TABLE)
+  const auditEntry: AuditEntry = {
+    timestamp: new Date().toISOString(),
+    weight: calcTruckWeight(remaining)
+  }
+
+  const updatedAudit = [...audit, auditEntry]
+
+  await client.putItem(
+    { id, parcels: remaining, audit: updatedAudit },
+    DDB_TABLE
+  )
 
   return offload
 }

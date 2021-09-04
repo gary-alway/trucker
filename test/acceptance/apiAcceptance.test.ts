@@ -24,7 +24,7 @@ describe('API acceptance tests', () => {
     expect(status).toBe(200)
     expect(body).toEqual({
       status: 'ok',
-      data: { id, parcels: [], totalWeight: 0 }
+      data: { id, parcels: [], audit: [], totalWeight: 0 }
     })
   })
 

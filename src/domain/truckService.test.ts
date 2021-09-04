@@ -1,9 +1,10 @@
 import { createDynamoMockClient } from '../../test/testAwsMockClients'
-import { testParcel, testTruck } from '../../test/testFactories'
+import { testAudit, testParcel, testTruck } from '../../test/testFactories'
 import * as getClients from '../clients/getClients'
 import { DDB_TABLE } from '../constants'
-import { Parcel } from '../types'
+import { AuditEntry, Parcel } from '../types'
 import {
+  calcTruckWeight,
   createTruck,
   getTrucks,
   loadTruck,
@@ -15,13 +16,16 @@ const scan = jest.fn()
 const getItem = jest.fn()
 const mockClient = createDynamoMockClient({ getItem, scan })
 const parcels = [testParcel(), testParcel(), testParcel(), testParcel()]
+const audit = [testAudit()]
 const id = '1234'
-const truck = testTruck({ id, parcels })
+const truck = testTruck({ id, parcels, audit })
 const truckRecord = { Item: truck }
 const trucks = [truck, testTruck()]
 const trucksRecord = { Items: trucks }
 
 jest.spyOn(getClients, 'getDynamoClient').mockReturnValue(mockClient)
+const timestamp = new Date().toISOString()
+jest.spyOn(Date.prototype, 'toISOString').mockImplementation(() => timestamp)
 
 describe.each([[true], [false]])('default client: %s', defaultClient => {
   const client = defaultClient ? undefined : mockClient
@@ -96,13 +100,55 @@ describe.each([[true], [false]])('default client: %s', defaultClient => {
     getItem.mockResolvedValueOnce(truckRecord)
     await loadTruck(id, parcels, client)
 
+    const auditEntry: AuditEntry = {
+      timestamp,
+      weight: calcTruckWeight(parcels)
+    }
+
+    const updatedAudit = [...audit, auditEntry]
+
     expect(mockClient.putItem).toHaveBeenCalledTimes(1)
-    expect(mockClient.putItem).toHaveBeenCalledWith({ id, parcels }, DDB_TABLE)
+    expect(mockClient.putItem).toHaveBeenCalledWith(
+      { id, parcels, audit: updatedAudit },
+      DDB_TABLE
+    )
+  })
+
+  it('adds parcels to an already loaded truck', async () => {
+    getItem.mockResolvedValueOnce(truckRecord)
+
+    const newParcels = [testParcel(), testParcel()]
+
+    await loadTruck(id, newParcels, client)
+
+    const newTruckLoad = [...parcels, ...newParcels]
+
+    const auditEntry: AuditEntry = {
+      timestamp,
+      weight: calcTruckWeight(newTruckLoad)
+    }
+
+    const updatedAudit = [...audit, auditEntry]
+
+    expect(mockClient.putItem).toHaveBeenCalledTimes(1)
+    expect(mockClient.putItem).toHaveBeenCalledWith(
+      { id, parcels: newTruckLoad, audit: updatedAudit },
+      DDB_TABLE
+    )
   })
 
   it('unloads a truck', async () => {
     getItem.mockResolvedValueOnce(truckRecord)
     const result = await unloadTruck(id, [parcels[0].id, parcels[2].id], client)
+
+    const newTruckLoad = [parcels[1], parcels[3]]
+
+    const auditEntry: AuditEntry = {
+      timestamp,
+      weight: calcTruckWeight(newTruckLoad)
+    }
+
+    const updatedAudit = [...audit, auditEntry]
 
     expect(getItem).toHaveBeenCalledTimes(1)
     expect(getItem).toHaveBeenCalledWith({
@@ -114,7 +160,7 @@ describe.each([[true], [false]])('default client: %s', defaultClient => {
 
     expect(mockClient.putItem).toHaveBeenCalledTimes(1)
     expect(mockClient.putItem).toHaveBeenCalledWith(
-      { id, parcels: [parcels[1], parcels[3]] },
+      { id, parcels: newTruckLoad, audit: updatedAudit },
       DDB_TABLE
     )
 

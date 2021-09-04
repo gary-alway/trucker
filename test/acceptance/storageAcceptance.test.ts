@@ -3,6 +3,7 @@ import { purgeAll, testDynamoClient } from '../awsTestClients'
 import waitForExpect from 'wait-for-expect'
 import { API, DDB_TABLE } from '../../src/constants'
 import { testParcel } from '../testFactories'
+import { calcTruckWeight } from '../../src/domain/truckService'
 
 const parcels = [testParcel(), testParcel()]
 const createTruck = () => request.post(`${API}/trucks/create`)
@@ -47,7 +48,18 @@ describe('Trucker storage tests', () => {
           } as any // eslint-disable-line @typescript-eslint/no-explicit-any
         })
 
-        expect(truckRecord).toEqual({ Item: { id, parcels } })
+        expect(truckRecord).toEqual({
+          Item: {
+            id,
+            parcels,
+            audit: expect.arrayContaining([
+              {
+                timestamp: expect.any(String),
+                weight: calcTruckWeight(parcels)
+              }
+            ])
+          }
+        })
       },
       8000,
       200

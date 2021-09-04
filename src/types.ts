@@ -6,6 +6,11 @@ export type APIResponse = {
   }
 }
 
+export type AuditEntry = {
+  timestamp: string
+  weight: number
+}
+
 export type Parcel = {
   id: string
   weight: number
@@ -14,6 +19,7 @@ export type Parcel = {
 export type Truck = {
   id: string
   parcels: Parcel[]
+  audit: AuditEntry[]
   totalWeight?: number
   status?: string
 }
